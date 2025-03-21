@@ -1,23 +1,33 @@
+import argparse
 import os
 import shutil
 from pathlib import Path
 
-def define_path(path = '/home/husseingm/Downloads/'):
+def define_path():
     """
-    Changes the current working directory to the specified path and returns it.
-
-    Args:
-        path (str, optional): The directory path to change to. 
-            Defaults to '/home/husseingm/Downloads/'.
-
+    Function to define and validate the path provided through command line arguments.
+    This function sets up argument parsing for a directory path, validates its existence,
+    and returns the path as a Path object.
     Returns:
-        str: The path that was set as the current working directory.
-
+        Path: A pathlib.Path object representing the validated directory path.
     Raises:
-        OSError: If the specified path does not exist or is not accessible.
+        SystemExit: If the specified directory path does not exist.
+    Example:
+        >>> path = define_path()  # When called with -p /some/directory
+        The directory is now selected as: directory
     """
-    os.chdir(path)
-    print("Target path is selected as: {}".format(path))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--path')
+    args = parser.parse_args()
+    
+    path = Path(args.path)
+    
+    print("The directory is now selected as: {}".format(path.name))
+    
+    if not path.exists():
+        print("The entered directory dose not exists")
+        raise SystemExit(1)
+    
     return path
 
 def get_extensions(path):
@@ -79,28 +89,6 @@ def move_files(directory):
     print("Files moved to specified folders successfully")
 
 def main():
-    """
-    Main function for the file organizer application.
-    This function orchestrates the file organization process by:
-    1. Defining the target directory path
-    2. Getting unique file extensions in the directory
-    3. Creating folders for each extension type
-    4. Moving files into their respective folders
-    The function executes these steps in sequence using helper functions:
-    - define_path(): Gets the directory path to organize
-    - get_extensions(): Identifies unique file extensions
-    - make_folders(): Creates folders for each extension
-    - move_files(): Moves files into appropriate folders
-    Returns:
-        None
-    """
-    
-    path = define_path()
-    
-    extensions = get_extensions(path)
-    
-    make_folders(path, extensions)
-    
-    move_files(path)
+    pass
 
 if __name__ == '__main__': main()
