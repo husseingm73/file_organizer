@@ -1,106 +1,97 @@
+import argparse
 import os
 import shutil
 from pathlib import Path
 
-def define_path(path = '/home/husseingm/Downloads/'):
+def define_path():
     """
-    Changes the current working directory to the specified path and returns it.
-
-    Args:
-        path (str, optional): The directory path to change to. 
-            Defaults to '/home/husseingm/Downloads/'.
-
+    Function to define and validate the path provided through command line arguments.
+    This function sets up argument parsing for a directory path, validates its existence,
+    and returns the path as a Path object.
     Returns:
-        str: The path that was set as the current working directory.
-
+        Path: A pathlib.Path object representing the validated directory path.
     Raises:
-        OSError: If the specified path does not exist or is not accessible.
+        SystemExit: If the specified directory path does not exist.
+    Example:
+        >>> path = define_path()  # When called with -p /some/directory
+        The directory is now selected as: directory
     """
-    os.chdir(path)
-    print("Target path is selected as: {}".format(path))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-p', '--path', default=os.getcwd())
+    args = parser.parse_args()
+    
+    path = Path(args.path)
+    
+    print("The directory is now selected as: {}".format(path.name))
+    
+    if not path.exists():
+        print("The entered directory dose not exists")
+        raise SystemExit(1)
+    
     return path
 
-def get_extensions(path):
+def make_folders(path):
     """
-    Get unique file extensions from a given directory.
+    Organizes files in a directory by moving them into categorized folders based on their extensions.
+    This function creates folders for different file types (e.g., Archives, Documents, Images)
+    and moves files into their respective folders based on their extensions. Files with
+    unrecognized extensions are moved to an 'Others' folder.
     Args:
-        path (str or Path): Path to the directory to scan for file extensions.
-    Returns:
-        set: A set of unique file extensions (without the leading dot) found in the directory.
+        path (str): The directory path where files need to be organized.
     Example:
-        >>> get_extensions('/path/to/directory')
-        {'txt', 'pdf', 'doc'}
-    """
-    directory = Path(path)
-    
-    extensions = set(file.suffix[1: ] for file in directory.iterdir() if file.is_file())
-    return extensions
-
-def make_folders(directory, extensions):
-    """
-    Creates folders for each file extension in the specified directory.
-
-    Args:
-        directory (Path): The path object representing the target directory where folders will be created
-        extensions (list): List of file extensions (without dots) for which folders should be created
-
-    Example:
-        If extensions=['pdf', 'txt'], it will create 'pdf' and 'txt' folders in the specified directory
-
+        >>> make_folders('/path/to/directory')
+        'example.pdf' is one of Documents so it will move to /path/to/directory/Documents
+        'unknown.xyz' did not match any group so it will move to /path/to/directory/Others
     Note:
-        - Uses os.makedirs with exist_ok=True to avoid errors if folders already exist
-        - Folder names will match exactly the extension strings provided
+        - Creates directories if they don't exist
+        - Prints messages indicating where each file is moved
+        - Handles various file types including:
+            * Archives (.zip, .tar, etc.)
+            * Documents (.pdf, .doc, etc.)
+            * Images (.jpg, .png, etc.)
+            * Videos (.mp4, .avi, etc.)
+            * And more...
+    Requires:
+        - os
+        - shutil
+        - pathlib.Path
     """
-    for extension in extensions:
-        folder = directory.joinpath(f'{extension}')
-        os.makedirs(folder, exist_ok=True)
+    extension_groups = {
+        "Archives": ['.zip', '.tar', '.gz', '.bz2', '.rar', '.7z', '.xz'],
+        "Documents": ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods'],
+        "Images": ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg', '.webp'],
+        "Videos": ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'],
+        "Audio": ['.mp3', '.wav', '.aac', '.flac', '.ogg', '.wma', '.m4a'],
+        "Executables": ['.exe', '.bin', '.sh', '.bat', '.msi', '.apk', '.deb'],
+        "Scripts": ['.py', '.js', '.html', '.css', '.php', '.rb', '.pl', '.java', '.c', '.cpp'],
+        "Miscellaneous": ['.log', '.tmp', '.bak', '.old', '.json', '.xml', '.csv', '.yaml', '.yml'],
+        "Fonts": ['.ttf', '.otf', '.woff', '.woff2'],
+        "CAD": ['.dwg', '.dxf'],
+        "3D Models": ['.obj', '.fbx', '.stl', '.dae'],
+        "Database": ['.sql', '.db', '.sqlite', '.mdb', '.accdb'],
+        "System": ['.sys', '.dll', '.ini', '.cfg'],
+    }
+    directory = Path(path)
+    others = directory / "Others"
+    os.makedirs(others, exist_ok=True)
     
-    folders = ', '.join(extensions)
-    print(f'{folders}; are created successfully')
-
-def move_files(directory):
-    """
-    Moves files in the given directory to subdirectories based on their file extensions.
-
-    For example, a file named 'document.pdf' will be moved to a 'pdf' subdirectory.
-
-    Args:
-        directory (Path): A pathlib.Path object representing the directory to organize.
-
-    Raises:
-        FileNotFoundError: If the specified directory doesn't exist.
-        PermissionError: If there are insufficient permissions to move files.
-        shutil.Error: If there's an error during the file moving operation.
-    """
-    for file in directory.iterdir():
-        if file.is_file():
-            shutil.move(file, f'{directory}/{file.suffix[1: ]}')
-    
-    print("Files moved to specified folders successfully")
+    # Get a list of files to avoid modifying the directory during iteration.
+    for content in list(directory.iterdir()):
+        if content.is_file():
+            moved = False
+            for cat, exts in extension_groups.items():
+                if content.suffix in exts:
+                    target_dir = directory / cat
+                    os.makedirs(target_dir, exist_ok=True)
+                    shutil.move(str(content), str(target_dir))
+                    print(f"'{content.name}' is one of {cat} so it will move to {target_dir}")
+                    moved = True
+                    break
+            if not moved:
+                shutil.move(str(content), str(others))
+                print(f"'{content.name}' did not match any group so it will move to {others}")
 
 def main():
-    """
-    Main function for the file organizer application.
-    This function orchestrates the file organization process by:
-    1. Defining the target directory path
-    2. Getting unique file extensions in the directory
-    3. Creating folders for each extension type
-    4. Moving files into their respective folders
-    The function executes these steps in sequence using helper functions:
-    - define_path(): Gets the directory path to organize
-    - get_extensions(): Identifies unique file extensions
-    - make_folders(): Creates folders for each extension
-    - move_files(): Moves files into appropriate folders
-    Returns:
-        None
-    """
-    
-    path = define_path()
-    
-    extensions = get_extensions(path)
-    
-    make_folders(path, extensions)
-    
-    move_files(path)
+    pass
 
 if __name__ == '__main__': main()
