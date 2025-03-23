@@ -58,7 +58,7 @@ def define_options():
             - "path": The validated directory path as a Path object.
             - "dry-run": A boolean flag indicating if it's a dry run.
             - "config": The path to the configuration file.
-    
+            
     Raises:
         SystemExit: If the specified directory does not exist.
     """
@@ -119,7 +119,8 @@ def load_config(config_path):
 
 def file_organizer(path, dry_run, config):
     """
-    Organizes files in a directory by moving them into categorized folders based on their extensions.
+    Organizes files in a directory by moving them into categorized folders based on their 
+    extensions.
     
     This function performs the following steps:
         1. Loads extension mappings from the configuration file.
