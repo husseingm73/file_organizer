@@ -1,23 +1,29 @@
 import argparse
+import json
 import os
 import shutil
 from pathlib import Path
 
-def define_path():
-    """
-    Function to define and validate the path provided through command line arguments.
-    This function sets up argument parsing for a directory path, validates its existence,
-    and returns the path as a Path object.
+def define_options():
+    """Process command line arguments and validate the provided directory path.
+    This function sets up and processes command line arguments for the file organizer,
+    including the target directory path, dry run option, and configuration file path.
     Returns:
-        Path: A pathlib.Path object representing the validated directory path.
+        tuple: A tuple containing:
+            - Path: The validated target directory path
+            - bool: Flag indicating whether to perform a dry run
+            - str: Path to the configuration file
     Raises:
-        SystemExit: If the specified directory path does not exist.
-    Example:
-        >>> path = define_path()  # When called with -p /some/directory
-        The directory is now selected as: directory
+        SystemExit: If the specified directory path does not exist
+    Command Line Arguments:
+        -p, --path: Target directory path (default: current working directory)
+        --dry-run: Flag to perform a dry run without moving files
+        -c, --config: Path to the configuration file (default: "config.json")
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--path', default=os.getcwd())
+    parser.add_argument('-p', '--path', default=os.getcwd(), help="Target directory path which organization will happen")
+    parser.add_argument('--dry-run', action="store_true", help="Perform a dry run without moving files to ensure functionality")
+    parser.add_argument('-c', '--config', default="config.json", help="Path to the configuration file")
     args = parser.parse_args()
     
     path = Path(args.path)
@@ -28,9 +34,13 @@ def define_path():
         print("The entered directory dose not exists")
         raise SystemExit(1)
     
-    return path
+    return path, args.dry_run, args.config
 
-def make_folders(path):
+def load_config(config_path):
+    with open(config_path, 'r') as f:
+        return json.load(f)
+
+def make_folders(path, dry_run, config):
     """
     Organizes files in a directory by moving them into categorized folders based on their extensions.
     This function creates folders for different file types (e.g., Archives, Documents, Images)
@@ -56,24 +66,16 @@ def make_folders(path):
         - shutil
         - pathlib.Path
     """
-    extension_groups = {
-        "Archives": ['.zip', '.tar', '.gz', '.bz2', '.rar', '.7z', '.xz'],
-        "Documents": ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods'],
-        "Images": ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg', '.webp'],
-        "Videos": ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm'],
-        "Audio": ['.mp3', '.wav', '.aac', '.flac', '.ogg', '.wma', '.m4a'],
-        "Executables": ['.exe', '.bin', '.sh', '.bat', '.msi', '.apk', '.deb'],
-        "Scripts": ['.py', '.js', '.html', '.css', '.php', '.rb', '.pl', '.java', '.c', '.cpp'],
-        "Miscellaneous": ['.log', '.tmp', '.bak', '.old', '.json', '.xml', '.csv', '.yaml', '.yml'],
-        "Fonts": ['.ttf', '.otf', '.woff', '.woff2'],
-        "CAD": ['.dwg', '.dxf'],
-        "3D Models": ['.obj', '.fbx', '.stl', '.dae'],
-        "Database": ['.sql', '.db', '.sqlite', '.mdb', '.accdb'],
-        "System": ['.sys', '.dll', '.ini', '.cfg'],
-    }
+    extension_groups = load_config(config)
     directory = Path(path)
-    others = directory / "Others"
-    os.makedirs(others, exist_ok=True)
+    
+    if not dry_run:
+        others = directory / "Others"
+        os.makedirs(others, exist_ok=True)
+    else:
+        print(f'[DRY RUN] Others folder will be create to move uncategorized formats into itself')
+    
+    dirs = []
     
     # Get a list of files to avoid modifying the directory during iteration.
     for content in list(directory.iterdir()):
@@ -82,16 +84,24 @@ def make_folders(path):
             for cat, exts in extension_groups.items():
                 if content.suffix in exts:
                     target_dir = directory / cat
-                    os.makedirs(target_dir, exist_ok=True)
-                    shutil.move(str(content), str(target_dir))
-                    print(f"'{content.name}' is one of {cat} so it will move to {target_dir}")
+                    if dry_run:
+                        print(f'{cat} folder created')
+                        print(f'[DRY RUN] {content.name} will be move into {target_dir}')
+                    else:
+                        os.makedirs(target_dir, exist_ok=True)
+                        shutil.move(str(content), str(target_dir))
+                        print(f"'{content.name}' is one of {cat} so it will move to {target_dir}")
                     moved = True
                     break
             if not moved:
-                shutil.move(str(content), str(others))
-                print(f"'{content.name}' did not match any group so it will move to {others}")
+                if dry_run:
+                    print(f'[DRY RUN] {content.name} will be move into Others')
+                else:
+                    shutil.move(str(content), str(others))
+                    print(f"'{content.name}' did not match any group so it will move to {others}")
 
 def main():
-    pass
+    path, dry_run, config = define_options()
+    make_folders(path, dry_run, config)
 
 if __name__ == '__main__': main()
