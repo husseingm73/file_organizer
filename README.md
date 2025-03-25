@@ -26,6 +26,7 @@ The script expects a JSON configuration file that defines file extension mapping
 ```
 
 ## Dependencies
+
 This was created using standard Python libraries—nothing too complicated! Just make sure you have Python installed on your system, and you’re all set to go!
 
 ## Usage
